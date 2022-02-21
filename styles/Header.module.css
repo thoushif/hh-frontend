@@ -8,10 +8,16 @@
   padding: 0 30px;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
-
 .header a {
   color: #333;
   margin-right: 20px;
+}
+
+.giveheader {
+  box-shadow: 0 2px 5px #4a6af7;
+}
+.askheader {
+  box-shadow: 0 2px 5px #060;
 }
 
 .header a:hover {
@@ -30,10 +36,18 @@
   text-transform: uppercase;
 }
 
+.rightmargin {
+  margin-right: 5px;
+}
 .logo a {
   color: red;
 }
-
+.asklogo {
+  color: #4a6af7;
+}
+.givelogo {
+  color: #060;
+}
 @media (max-width: 768px) {
   .header {
     flex-direction: column;

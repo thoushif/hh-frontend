@@ -25,6 +25,6 @@ function Layout({ title, keywords, description, children }) {
 Layout.defaultProps = {
   title: "Help Helper!",
   keywords: "help, helper, help helper, find helps",
-  description: "Find Helps in your area",
+  description: "Find Helps",
 };
 export default Layout;

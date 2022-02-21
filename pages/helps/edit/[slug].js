@@ -1,31 +1,28 @@
 import Layout from "@/components/Layout";
-import { API_URL, HELP_AVAILABLE_THRESHOLD } from "@/config/index";
+import { API_URL } from "@/config/index";
 import { useRouter } from "next/router";
 import { useState } from "react";
 import styles from "@/styles/Form.module.css";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { parseCookies } from "@/helpers/index";
-import { useModeSwitch } from "@/context/ModeContext";
 import Categories from "@/components/Categories";
+import useSWR from "swr";
 
-function AddPage({ token }) {
-  const [mode, setMode] = useModeSwitch();
-  const [categoriesSelected, setCategoriesSelected] = useState([]);
-
-  let d = new Date();
-  d.setDate(d.getDate() + HELP_AVAILABLE_THRESHOLD);
+function EditPage({ help, categories, token }) {
+  const router = useRouter();
+  let d = new Date(help.date);
   const ye = new Intl.DateTimeFormat("en", { year: "numeric" }).format(d);
   const mo = new Intl.DateTimeFormat("en", { month: "2-digit" }).format(d);
   const da = new Intl.DateTimeFormat("en", { day: "2-digit" }).format(d);
-  const router = useRouter();
+  const [categoriesSelected, setCategoriesSelected] = useState(categories);
   const [values, setValues] = useState({
-    name: "",
-    description: "",
+    name: help.name,
+    description: help.description,
     date: `${ye}-${mo}-${da}`,
-    // time: "12:00 AM",
-    is_ask: mode,
+    // time: help.time,
   });
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setValues({ ...values, [name]: value });
@@ -38,10 +35,9 @@ function AddPage({ token }) {
     );
     if (hasEmptyFields) {
       toast.error("Please fill in all fields");
-      return;
     }
-    const res = await fetch(`${API_URL}/api/helps`, {
-      method: "POST",
+    const res = await fetch(`${API_URL}/api/helps/${help.id}`, {
+      method: "PUT",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
@@ -50,16 +46,16 @@ function AddPage({ token }) {
         data: { ...values, categories: categoriesSelected },
       }),
     });
-    console.log(res);
     if (!res.ok) {
       if (res.status === 403 || res.status === 401) {
-        toast.error("You are not authorized to add helps");
+        toast.error("You are not authorized to edit this");
         return;
       }
       toast.error("Something Went Wrong");
     } else {
       const help = await res.json();
-      router.push(`/helps/${help.slug}`);
+      const { attributes } = help.data;
+      router.push(`/helps/${attributes.slug}`);
     }
   };
   const onClickHandler = (id) => {
@@ -70,8 +66,8 @@ function AddPage({ token }) {
     );
   };
   return (
-    <Layout title="Add a new help">
-      <h1>{mode ? "Asking..." : "Giving..."}</h1>
+    <Layout title="Edit help">
+      <h1>Helps - Edit </h1>
       <ToastContainer />
       <form onSubmit={handleSubmit} className={styles.form}>
         <div className={styles.grid}>
@@ -82,21 +78,17 @@ function AddPage({ token }) {
               id="name"
               name="name"
               value={values.name}
-              required
               onChange={handleInputChange}
             />
           </div>
 
           <div>
-            <label htmlFor="date">
-              {mode ? "need by " : "can provide till "}
-            </label>
+            <label htmlFor="date">Date</label>
             <input
               type="date"
               name="date"
               id="date"
               value={values.date}
-              required
               onChange={handleInputChange}
             />
           </div>
@@ -107,7 +99,6 @@ function AddPage({ token }) {
               name="time"
               id="time"
               value={values.time}
-              required
               onChange={handleInputChange}
             />
           </div> */}
@@ -116,29 +107,25 @@ function AddPage({ token }) {
           onClickHandler={onClickHandler}
           categoriesSelected={categoriesSelected}
         />
-        {categoriesSelected}
         <div>
           <label htmlFor="description">Help Description</label>
           <textarea
             type="text"
             name="description"
             id="description"
-            maxLength={1000}
-            placeholder={`I ${mode ? "need " : "can provide "}...`}
             value={values.description}
-            required
             onChange={handleInputChange}
           ></textarea>
         </div>
-        <input type="submit" value="Add Help" className="btn" />
+        <input type="submit" value="Update Help" className="btn" />
       </form>
     </Layout>
   );
 }
 
-export default AddPage;
+export default EditPage;
 
-export async function getServerSideProps({ req }) {
+export async function getServerSideProps({ params: { slug }, req }) {
   const { token } = parseCookies(req);
   if (!token) {
     return {
@@ -148,8 +135,39 @@ export async function getServerSideProps({ req }) {
       },
     };
   }
+  const res = await fetch(
+    `${API_URL}/api/helps?filters[slug]=${slug}&populate[categories][fields][0]=id&populate[categories][filters][active]=true`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+
+  const helps = await res.json();
+  if (res.status === 403 || res.status === 401) {
+    return {
+      redirect: {
+        destination: "/404",
+        permanent: false,
+      },
+    };
+  }
+  console.log("helps are", helps);
+  console.log("helps are", helps.data[0].attributes);
+  const help = {
+    ...helps.data[0].attributes,
+    id: helps.data[0].id,
+  };
+  const categories = helps.data[0].attributes.categories.data.map(
+    (item) => item.id
+  );
+  console.log("categories are", categories);
   return {
     props: {
+      help,
+      categories,
       token,
     },
   };
